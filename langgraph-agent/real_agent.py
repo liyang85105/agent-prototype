@@ -67,11 +67,14 @@ def llm_call(state: MessagesState):
     }
 
 
-def tool_node(state: dict):
+def tool_node(state: MessagesState):
     """Performs the tool call"""
 
     result = []
-    for tool_call in state["messages"][-1].tool_calls:
+    last_message = state["messages"][-1]
+    if not last_message.tool_calls:
+        return {"messages": []}
+    for tool_call in last_message.tool_calls:
         tool = tools_by_name[tool_call["name"]]
         observation = tool.invoke(tool_call["args"])
         result.append(ToolMessage(content=observation, tool_call_id=tool_call["id"]))
@@ -86,7 +89,7 @@ def should_continue(state: MessagesState) -> Literal["environment", END]:
     last_message = messages[-1]
     # If the LLM makes a tool call, then perform an action
     if last_message.tool_calls:
-        return "Action"
+        return "environment"
     # Otherwise, we stop (reply to the user)
     return END
 
@@ -105,7 +108,7 @@ agent_builder.add_conditional_edges(
     should_continue,
     {
         # Name returned by should_continue : Name of next node to visit
-        "Action": "environment",
+        "environment": "environment",
         END: END,
     },
 )
